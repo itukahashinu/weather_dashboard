@@ -38,8 +38,33 @@ interface WeatherEntry {
   weather: string;
 }
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = process.env.OPENWEATHER_API_KEY;
+
+  // GETリクエストの場合、キャッシュデータを表示
+  if (req.method === 'GET') {
+    try {
+      const allKeys = await redis.keys('weather:*');
+      const cacheData: { [key: string]: any } = {};
+      
+      for (const key of allKeys) {
+        cacheData[key] = await redis.get(key);
+      }
+
+      return res.status(200).json({
+        message: 'Current cache data',
+        data: cacheData
+      });
+    } catch (error) {
+      console.error('Error fetching cache data:', error);
+      return res.status(500).json({ error: 'Failed to fetch cache data' });
+    }
+  }
+
+  // POSTリクエストの場合、天気データを更新
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed. Use GET to view cache or POST to update weather.' });
+  }
 
   if (!apiKey) {
     console.error('API key is missing');
