@@ -1,5 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { Redis } from '@upstash/redis';
 import axios from 'axios';
+
+const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 interface WeatherEntry {
   timestamp: number;
@@ -20,75 +27,53 @@ interface WeatherData {
     sys: { country: string; sunrise: number; sunset: number };
     timezone: number;
     visibility: number;
-    [key: string]: any;
   };
   history: WeatherEntry[];
 }
 
-const cities = [
-  "Tokyo", "New York", "London", "Paris", "Sydney",
-  "Beijing", "Moscow", "Dubai", "Mumbai", "São Paulo",
-  "Los Angeles", "Berlin", "Rome", "Toronto", "Seoul",
-  "Shanghai", "Bangkok", "Mexico City", "Cairo", "Jakarta",
-  "Singapore", "Hong Kong", "Istanbul", "Buenos Aires", "Madrid",
-  "Delhi", "Lagos", "Johannesburg", "Chicago", "Amsterdam",
-  "Stockholm", "Vienna", "Athens", "Osaka", "Melbourne",
-  "Vancouver", "Miami", "Barcelona", "Kuala Lumpur", "Riyadh",
-  "Santiago", "Cape Town", "Nairobi", "Lisbon", "Dublin",
-  "Zurich", "Helsinki", "Oslo", "Copenhagen", "Warsaw",
-  "Prague", "Budapest", "Manila", "Hanoi", "Lima",
-  "Bogotá", "Caracas", "Kyiv", "Algiers", "Dhaka"
-];
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse
+) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-const App: React.FC = () => {
-  const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
+  const { city } = req.query;
 
-  useEffect(() => {
-    const fetchAllWeather = async () => {
-      try {
-        const promises = cities.map(city =>
-          axios.get(`/api/weather?city=${city.toLowerCase()}`)
-        );
-        const responses = await Promise.all(promises);
-        setWeatherData(responses.map(response => response.data));
-      } catch (error) {
-        console.error('Error fetching weather data:', error);
-        setWeatherData([]);
-      }
+  if (!city || typeof city !== 'string') {
+    return res.status(400).json({ error: 'City parameter is required' });
+  }
+
+  if (!OPENWEATHER_API_KEY) {
+    return res.status(500).json({ error: 'OpenWeather API key is not configured' });
+  }
+
+  try {
+    // Get current weather
+    const currentWeatherResponse = await axios.get(
+      `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${OPENWEATHER_API_KEY}&units=metric`
+    );
+
+    // Get weather history from Redis
+    const historyKey = `weather:history:${city}`;
+    const history: WeatherEntry[] = await redis.get(historyKey) || [];
+
+    const weatherData: WeatherData = {
+      latest: currentWeatherResponse.data,
+      history: history
     };
 
-    fetchAllWeather();
-  }, []);
+    res.setHeader('Cache-Control', 's-maxage=300');
+    return res.status(200).json(weatherData);
 
-  return (
-    <div style={{ padding: '20px' }}>
-      <h1>World Weather</h1>
-      {weatherData.length > 0 ? (
-        weatherData.map((data, index) => (
-          <div key={index}>
-            <h2>{data.latest.name}</h2>
-            <pre>{JSON.stringify(data.latest, null, 2)}</pre>
-            <h3>History (Last 7 Days)</h3>
-            {data.history.length > 0 ? (
-              <ul>
-                {data.history.map((entry, idx) => (
-                  <li key={idx}>
-                    <strong>{new Date(entry.timestamp * 1000).toLocaleString()}</strong>
-                    <pre>{JSON.stringify(entry, null, 2)}</pre>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No history data available</p>
-            )}
-            <hr />
-          </div>
-        ))
-      ) : (
-        <p>Loading weather data...</p>
-      )}
-    </div>
-  );
-};
+  } catch (error) {
+    console.error('Error fetching weather data:', error);
+    
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return res.status(404).json({ error: 'City not found' });
+    }
 
-export default App;
+    return res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+}
