@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
 interface WeatherEntry {
   timestamp: number;
@@ -46,7 +45,6 @@ const App: React.FC = () => {
       <button onClick={fetchWeather}>Get Weather</button>
       {weather ? (
         <div>
-          <SpeedInsights />
           <h2>{weather.latest.name}</h2>
           <p>Temp: {weather.latest.main.temp}°C (Min: {weather.latest.main.temp_min}, Max: {weather.latest.main.temp_max})</p>
           <p>Humidity: {weather.latest.main.humidity}%</p>
