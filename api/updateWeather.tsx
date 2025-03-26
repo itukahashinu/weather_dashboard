@@ -23,7 +23,6 @@ const cities = [
   "Bogotá", "Caracas", "Kyiv", "Algiers", "Dhaka"
 ];
 
-// OpenWeatherAPIのレスポンス型
 interface WeatherData {
   dt: number;
   main: {
@@ -33,7 +32,7 @@ interface WeatherData {
   };
   weather: Array<{ description: string; icon: string }>;
   wind: { speed: number; deg: number };
-  [key: string]: any; // その他のプロパティを許容
+  [key: string]: any;
 }
 
 interface WeatherEntry {
@@ -48,18 +47,27 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   const apiKey = process.env.OPENWEATHER_API_KEY;
 
   if (!apiKey) {
+    console.error('API key is missing');
     return res.status(500).json({ error: 'API key is not configured' });
   }
 
   try {
+    // Pythonの成功例を参考にURLをフォーマット
+    const baseUrl = "https://api.openweathermap.org/data/2.5/weather?q={city_name}&units=metric&appid={API_key}";
+
     for (const city of cities) {
       const cachedLatest = await redis.get<WeatherData | null>(`weather:latest:${city}`);
       const now = Math.floor(Date.now() / 1000);
 
       if (!cachedLatest || (cachedLatest.dt + 600 < now)) {
-        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        // URLを動的に生成
+        const url = baseUrl.replace("{city_name}", city).replace("{API_key}", apiKey);
+        console.log(`Fetching data for ${city} from: ${url}`); // デバッグ用
+
         const response = await axios.get(url);
         const newData: WeatherData = response.data;
+
+        console.log(`Data for ${city}:`, newData); // 取得データ確認用
 
         // 最新データ保存（TTL: 10分）
         await redis.set(`weather:latest:${city}`, newData, { ex: 600 });
@@ -85,7 +93,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     }
     res.status(200).json({ message: 'Weather data updated' });
   } catch (error) {
-    console.error(error);
+    console.error('Error updating weather data:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to update weather data' });
   }
 }
