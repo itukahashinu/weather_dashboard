@@ -39,11 +39,11 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { city } = req.query;
-
-  if (!city || typeof city !== 'string') {
+  const cityParam = req.query.city;
+  if (!cityParam || typeof cityParam !== 'string') {
     return res.status(400).json({ error: 'City parameter is required' });
   }
+  const city = decodeURIComponent(cityParam);
 
   if (!OPENWEATHER_API_KEY) {
     return res.status(500).json({ error: 'OpenWeather API key is not configured' });
@@ -52,7 +52,7 @@ export default async function handler(
   try {
     // Get current weather
     const currentWeatherResponse = await axios.get(
-      `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${OPENWEATHER_API_KEY}&units=metric`
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${OPENWEATHER_API_KEY}&units=metric`
     );
 
     // Get weather history from Redis

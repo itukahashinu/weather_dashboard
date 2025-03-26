@@ -47,7 +47,7 @@ const App: React.FC = () => {
     const fetchAllWeather = async () => {
       try {
         const promises = cities.map(city =>
-          axios.get(`/api/weather?city=${city.toLowerCase()}`)
+          axios.get(`/api/weather?city=${encodeURIComponent(city)}`)
         );
         const responses = await Promise.all(promises);
         setWeatherData(responses.map(response => response.data));
