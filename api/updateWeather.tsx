@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Redis } from '@upstash/redis';
 
-// Redisインスタンス
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
@@ -25,11 +24,7 @@ const cities = [
 
 interface WeatherData {
   dt: number;
-  main: {
-    temp: number;
-    humidity: number;
-    pressure?: number;
-  };
+  main: { temp: number; humidity: number; pressure?: number };
   weather: Array<{ description: string; icon: string }>;
   wind: { speed: number; deg: number };
   [key: string]: any;
@@ -52,29 +47,27 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   }
 
   try {
-    // Pythonの成功例を参考にURLをフォーマット
+    console.log('Starting weather update process...');
     const baseUrl = "https://api.openweathermap.org/data/2.5/weather?q={city_name}&units=metric&appid={API_key}";
 
     for (const city of cities) {
-      const cachedLatest = await redis.get<WeatherData | null>(`weather:latest:${city}`);
-      const now = Math.floor(Date.now() / 1000);
+      console.log(`Processing ${city}...`);
 
-      if (!cachedLatest || (cachedLatest.dt + 600 < now)) {
-        // URLを動的に生成
-        const url = baseUrl.replace("{city_name}", city).replace("{API_key}", apiKey);
-        console.log(`Fetching data for ${city} from: ${url}`); // デバッグ用
+      // 強制的にリクエストを送信（キャッシュチェックを一旦無視）
+      const url = baseUrl.replace("{city_name}", city).replace("{API_key}", apiKey);
+      console.log(`Requesting data for ${city} from: ${url}`);
 
+      try {
         const response = await axios.get(url);
         const newData: WeatherData = response.data;
+        console.log(`Received data for ${city}:`, newData);
 
-        console.log(`Data for ${city}:`, newData); // 取得データ確認用
-
-        // 最新データ保存（TTL: 10分）
+        // Redisに保存
         await redis.set(`weather:latest:${city}`, newData, { ex: 600 });
 
-        // 履歴更新
         const historyKey = `weather:history:${city}`;
         let history: WeatherEntry[] = (await redis.get(historyKey)) || [];
+        const now = Math.floor(Date.now() / 1000);
         history.unshift({
           timestamp: now,
           temp: newData.main.temp,
@@ -83,17 +76,16 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
           weather: newData.weather[0].description,
         });
 
-        // 1週間より古いデータを削除
         const oneWeekAgo = now - 604800;
         history = history.filter((entry) => entry.timestamp > oneWeekAgo);
-
-        // 履歴保存（TTL: 1週間）
         await redis.set(historyKey, history, { ex: 604800 });
+      } catch (cityError) {
+        console.error(`Error fetching data for ${city}:`, cityError.response?.data || cityError.message);
       }
     }
     res.status(200).json({ message: 'Weather data updated' });
   } catch (error) {
-    console.error('Error updating weather data:', error.response?.data || error.message);
+    console.error('Global error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to update weather data' });
   }
 }
