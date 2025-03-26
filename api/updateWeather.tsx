@@ -9,7 +9,18 @@ const redis = new Redis({
 });
 
 const cities = [
-  "Tokyo", "New York", "London", "Paris", "Sydney", /* ... 60都市 */
+  "Tokyo", "New York", "London", "Paris", "Sydney",
+  "Beijing", "Moscow", "Dubai", "Mumbai", "São Paulo",
+  "Los Angeles", "Berlin", "Rome", "Toronto", "Seoul",
+  "Shanghai", "Bangkok", "Mexico City", "Cairo", "Jakarta",
+  "Singapore", "Hong Kong", "Istanbul", "Buenos Aires", "Madrid",
+  "Delhi", "Lagos", "Johannesburg", "Chicago", "Amsterdam",
+  "Stockholm", "Vienna", "Athens", "Osaka", "Melbourne",
+  "Vancouver", "Miami", "Barcelona", "Kuala Lumpur", "Riyadh",
+  "Santiago", "Cape Town", "Nairobi", "Lisbon", "Dublin",
+  "Zurich", "Helsinki", "Oslo", "Copenhagen", "Warsaw",
+  "Prague", "Budapest", "Manila", "Hanoi", "Lima",
+  "Bogotá", "Caracas", "Kyiv", "Algiers", "Dhaka"
 ];
 
 // OpenWeatherAPIのレスポンス型
