@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 interface WeatherEntry {
@@ -20,59 +20,72 @@ interface WeatherData {
     sys: { country: string; sunrise: number; sunset: number };
     timezone: number;
     visibility: number;
-    [key: string]: any; // その他のプロパティを許容
+    [key: string]: any;
   };
   history: WeatherEntry[];
 }
 
-const App: React.FC = () => {
-  const [city, setCity] = useState('');
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+const cities = [
+  "Tokyo", "New York", "London", "Paris", "Sydney",
+  "Beijing", "Moscow", "Dubai", "Mumbai", "São Paulo",
+  "Los Angeles", "Berlin", "Rome", "Toronto", "Seoul",
+  "Shanghai", "Bangkok", "Mexico City", "Cairo", "Jakarta",
+  "Singapore", "Hong Kong", "Istanbul", "Buenos Aires", "Madrid",
+  "Delhi", "Lagos", "Johannesburg", "Chicago", "Amsterdam",
+  "Stockholm", "Vienna", "Athens", "Osaka", "Melbourne",
+  "Vancouver", "Miami", "Barcelona", "Kuala Lumpur", "Riyadh",
+  "Santiago", "Cape Town", "Nairobi", "Lisbon", "Dublin",
+  "Zurich", "Helsinki", "Oslo", "Copenhagen", "Warsaw",
+  "Prague", "Budapest", "Manila", "Hanoi", "Lima",
+  "Bogotá", "Caracas", "Kyiv", "Algiers", "Dhaka"
+];
 
-  const fetchWeather = async () => {
-    try {
-      const response = await axios.get(`/api/weather?city=${city}`);
-      setWeather(response.data);
-    } catch (error) {
-      setWeather(null);
-    }
-  };
+const App: React.FC = () => {
+  const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
+
+  useEffect(() => {
+    const fetchAllWeather = async () => {
+      try {
+        const promises = cities.map(city =>
+          axios.get(`/api/weather?city=${city.toLowerCase()}`)
+        );
+        const responses = await Promise.all(promises);
+        setWeatherData(responses.map(response => response.data));
+      } catch (error) {
+        console.error('Error fetching weather data:', error);
+        setWeatherData([]);
+      }
+    };
+
+    fetchAllWeather();
+  }, []);
 
   return (
     <div style={{ padding: '20px' }}>
-      <h1>Weather App</h1>
-      <input
-        value={city}
-        onChange={(e) => setCity(e.target.value)}
-        placeholder="Enter city (e.g., Tokyo)"
-        style={{ marginRight: '10px' }}
-      />
-      <button onClick={fetchWeather}>Get Weather</button>
-
-      {weather ? (
-        <div>
-          <h2>Latest Weather for {weather.latest.name}</h2>
-          <pre>
-            {/* latestデータの全内容を整形して表示 */}
-            {JSON.stringify(weather.latest, null, 2)}
-          </pre>
-
-          <h3>History (Last 7 Days)</h3>
-          {weather.history.length > 0 ? (
-            <ul>
-              {weather.history.map((entry, idx) => (
-                <li key={idx}>
-                  <strong>{new Date(entry.timestamp * 1000).toLocaleString()}</strong>
-                  <pre>{JSON.stringify(entry, null, 2)}</pre>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No history data available</p>
-          )}
-        </div>
+      <h1>World Weather</h1>
+      {weatherData.length > 0 ? (
+        weatherData.map((data, index) => (
+          <div key={index}>
+            <h2>{data.latest.name}</h2>
+            <pre>{JSON.stringify(data.latest, null, 2)}</pre>
+            <h3>History (Last 7 Days)</h3>
+            {data.history.length > 0 ? (
+              <ul>
+                {data.history.map((entry, idx) => (
+                  <li key={idx}>
+                    <strong>{new Date(entry.timestamp * 1000).toLocaleString()}</strong>
+                    <pre>{JSON.stringify(entry, null, 2)}</pre>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No history data available</p>
+            )}
+            <hr />
+          </div>
+        ))
       ) : (
-        city && <p>No data found for {city}</p>
+        <p>Loading weather data...</p>
       )}
     </div>
   );
