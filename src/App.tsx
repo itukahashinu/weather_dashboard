@@ -42,37 +42,40 @@ const cities = [
 
 const App: React.FC = () => {
   const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
+  const [cacheData, setCacheData] = useState<any>(null);
 
   useEffect(() => {
-    const fetchAllWeather = async () => {
+    const fetchData = async () => {
       try {
-        console.log('Starting to fetch weather data for all cities');
+        // 通常の天気データを取得
         const promises = cities.map(city => {
           const url = `/api/weather?city=${encodeURIComponent(city)}`;
-          console.log(`Fetching weather for ${city} from: ${url}`);
           return axios.get(url);
         });
         
-        console.log('Waiting for all requests to complete...');
         const responses = await Promise.all(promises);
-        console.log(`Received responses for ${responses.length} cities`);
-        
         setWeatherData(responses.map(response => response.data));
+
+        // キャッシュデータを取得
+        const cacheResponse = await axios.get('/api/updateWeather');
+        setCacheData(cacheResponse.data.data);
       } catch (error) {
-        console.error('Error fetching weather data:', error);
+        console.error('Error fetching data:', error);
         if (axios.isAxiosError(error)) {
           console.error('Response details:', error.response?.data);
         }
-        setWeatherData([]);
       }
     };
 
-    fetchAllWeather();
+    fetchData();
   }, []);
 
   return (
     <div style={{ padding: '20px' }}>
       <h1>World Weather</h1>
+      
+      {/* 通常の天気データ表示 */}
+      <h2>Current Weather Data</h2>
       {weatherData.length > 0 ? (
         weatherData.map((data, index) => (
           <div key={index}>
@@ -96,6 +99,28 @@ const App: React.FC = () => {
         ))
       ) : (
         <p>Loading weather data...</p>
+      )}
+
+      {/* キャッシュデータ表示 */}
+      <h2>Cache Data</h2>
+      {cacheData ? (
+        <div>
+          {Object.entries(cacheData).map(([key, value]) => (
+            <div key={key} style={{ marginBottom: '20px' }}>
+              <h3>{key}</h3>
+              <pre style={{ 
+                background: '#f5f5f5',
+                padding: '10px',
+                borderRadius: '5px',
+                overflowX: 'auto'
+              }}>
+                {JSON.stringify(value, null, 2)}
+              </pre>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>Loading cache data...</p>
       )}
     </div>
   );
