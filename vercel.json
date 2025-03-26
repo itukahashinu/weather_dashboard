@@ -1,16 +1,25 @@
 {
-    "builds": [
-      {
-        "src": "package.json",
-        "use": "@vercel/static-build",
-        "config": {
-          "distDir": "build"
-        }
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
       }
-    ],
-    "rewrites": [
-      { "source": "/api/updateWeather", "destination": "/api/updateWeather" },
-      { "source": "/api/weather", "destination": "/api/weather" },
-      { "source": "/(.*)", "destination": "/index.html" }
-    ]
-  }
+    },
+    {
+      "src": "api/**/*.tsx",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

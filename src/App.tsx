@@ -46,13 +46,23 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchAllWeather = async () => {
       try {
-        const promises = cities.map(city =>
-          axios.get(`/api/weather?city=${encodeURIComponent(city)}`)
-        );
+        console.log('Starting to fetch weather data for all cities');
+        const promises = cities.map(city => {
+          const url = `/api/weather?city=${encodeURIComponent(city)}`;
+          console.log(`Fetching weather for ${city} from: ${url}`);
+          return axios.get(url);
+        });
+        
+        console.log('Waiting for all requests to complete...');
         const responses = await Promise.all(promises);
+        console.log(`Received responses for ${responses.length} cities`);
+        
         setWeatherData(responses.map(response => response.data));
       } catch (error) {
         console.error('Error fetching weather data:', error);
+        if (axios.isAxiosError(error)) {
+          console.error('Response details:', error.response?.data);
+        }
         setWeatherData([]);
       }
     };

@@ -50,10 +50,15 @@ export default async function handler(
   }
 
   try {
+    console.log(`Fetching weather data for city: ${city}`);
+    console.log(`API Key present: ${!!OPENWEATHER_API_KEY}`);
+
     // Get current weather
-    const currentWeatherResponse = await axios.get(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${OPENWEATHER_API_KEY}&units=metric`
-    );
+    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+    console.log(`Requesting URL: ${weatherUrl.replace(OPENWEATHER_API_KEY, 'HIDDEN')}`);
+
+    const currentWeatherResponse = await axios.get(weatherUrl);
+    console.log('Weather API response received');
 
     // Get weather history from Redis
     const historyKey = `weather:history:${city}`;
