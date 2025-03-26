@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 interface WeatherEntry {
   timestamp: number;
